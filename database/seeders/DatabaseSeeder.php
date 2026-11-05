@@ -31,5 +31,7 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => 'gudang',
         ]);
+
+        $this->call(InventorySeeder::class);
     }
 }
