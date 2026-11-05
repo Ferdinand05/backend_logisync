@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 
-#[Fillable(['item_id', 'location_id', 'user_id', 'type', 'quantity', 'notes'])]
+#[Fillable(['item_id', 'location_id', 'user_id', 'type', 'quantity', 'reference_no', 'notes'])]
 class Transaction extends Model
 {
     public function item()

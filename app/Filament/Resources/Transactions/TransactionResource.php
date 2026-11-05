@@ -5,11 +5,15 @@ namespace App\Filament\Resources\Transactions;
 use App\Filament\Resources\Transactions\Pages\ListTransactions;
 use App\Models\Transaction;
 use BackedEnum;
+use Filament\Forms\Components\DatePicker;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class TransactionResource extends Resource
 {
@@ -43,7 +47,30 @@ class TransactionResource extends Resource
                     'adjustment' => 'Penyesuaian',
                     default => $state,
                 }),
-                TextColumn::make('quantity')->label('Jumlah')->numeric(),
+                TextColumn::make('quantity')->label('Jumlah')->numeric()->sortable(),
+            ])
+            ->filters([
+                SelectFilter::make('type')
+                    ->label('Jenis transaksi')
+                    ->options([
+                        'in' => 'Masuk',
+                        'out' => 'Keluar',
+                        'adjustment' => 'Penyesuaian',
+                    ]),
+                SelectFilter::make('item')
+                    ->label('Barang')
+                    ->relationship('item', 'name')
+                    ->searchable()
+                    ->preload(),
+                Filter::make('created_at')
+                    ->label('Tanggal transaksi')
+                    ->schema([
+                        DatePicker::make('created_from')->label('Dari tanggal'),
+                        DatePicker::make('created_until')->label('Sampai tanggal'),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => $query
+                        ->when($data['created_from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('created_at', '>=', $date))
+                        ->when($data['created_until'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('created_at', '<=', $date))),
             ]);
     }
 
