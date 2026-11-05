@@ -9,14 +9,20 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -56,7 +62,7 @@ class ItemResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->with(['category'])->withSum('locations as stock_quantity', 'item_location_stocks.quantity'))
+            ->modifyQueryUsing(fn ($query) => $query->with(['category', 'locations'])->withSum('locations as stock_quantity', 'item_location_stocks.quantity'))
             ->columns([
                 TextColumn::make('sku')->label('SKU')->searchable()->sortable(),
                 TextColumn::make('qr')
@@ -68,7 +74,55 @@ class ItemResource extends Resource
                 TextColumn::make('stock_quantity')->label('Total stok')->numeric()->sortable(),
                 TextColumn::make('is_under_audit')->label('Audit')->badge()->formatStateUsing(fn (bool $state): string => $state ? 'Dibekukan' : 'Aktif')->color(fn (bool $state): string => $state ? 'warning' : 'success'),
             ])
+            ->filters([
+                SelectFilter::make('is_under_audit')
+                    ->label('Status audit')
+                    ->options([
+                        '1' => 'Dibekukan',
+                        '0' => 'Aktif',
+                    ])
+                    ->query(fn ($query, $state) => $state !== null ? $query->where('is_under_audit', (bool) $state['value']) : $query),
+                SelectFilter::make('category')
+                    ->label('Kategori')
+                    ->relationship('category', 'name')
+                    ->searchable()
+                    ->preload(),
+            ])
             ->recordActions([
+                ViewAction::make()
+                    ->label('Detail')
+                    ->modalHeading(fn (Item $record): string => $record->name)
+                    ->modalWidth('2xl')
+                    ->schema(fn (Schema $schema): Schema => $schema
+                        ->components([
+                            Section::make('Informasi Barang')
+                                ->schema([
+                                    Grid::make(2)->schema([
+                                        TextEntry::make('name')->label('Nama barang'),
+                                        TextEntry::make('sku')->label('SKU'),
+                                        TextEntry::make('category.name')->label('Kategori'),
+                                        TextEntry::make('is_under_audit')
+                                            ->label('Status audit')
+                                            ->badge()
+                                            ->formatStateUsing(fn (bool $state): string => $state ? 'Dibekukan' : 'Aktif')
+                                            ->color(fn (bool $state): string => $state ? 'warning' : 'success'),
+                                    ]),
+                                ]),
+                            Section::make('QR Code')
+                                ->schema([
+                                    Group::make([
+                                        ViewEntry::make('qr')
+                                            ->label('')
+                                            ->view('filament.infolists.qr-code'),
+                                    ]),
+                                ]),
+                            Section::make('Sebaran Lokasi')
+                                ->schema([
+                                    ViewEntry::make('locations')
+                                        ->label('')
+                                        ->view('filament.infolists.item-locations'),
+                                ]),
+                        ])),
                 Action::make('downloadQr')
                     ->label('Unduh QR')
                     ->icon('heroicon-o-arrow-down-tray')
