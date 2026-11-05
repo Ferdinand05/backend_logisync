@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuditSessionController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\TransactionController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -21,4 +22,10 @@ Route::middleware('auth:sanctum')->prefix('audit-sessions')->group(function (): 
     Route::get('/{auditSession}', [AuditSessionController::class, 'show']);
     Route::post('/{auditSession}/scan', [AuditSessionController::class, 'scan']);
     Route::post('/{auditSession}/complete', [AuditSessionController::class, 'complete']);
+});
+
+Route::middleware('auth:sanctum')->prefix('transactions')->group(function (): void {
+    Route::get('/', [TransactionController::class, 'index']);
+    Route::post('/in', [TransactionController::class, 'in']);
+    Route::post('/out', [TransactionController::class, 'out']);
 });

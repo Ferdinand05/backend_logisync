@@ -16,6 +16,12 @@ class ViewAuditSession extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('printPdf')
+                ->label('Cetak PDF')
+                ->icon('heroicon-o-printer')
+                ->color('gray')
+                ->url(fn (): string => route('audit-sessions.pdf', $this->record))
+                ->openUrlInNewTab(),
             Action::make('completeAudit')
                 ->label('Selesaikan & sesuaikan stok')
                 ->color('success')
