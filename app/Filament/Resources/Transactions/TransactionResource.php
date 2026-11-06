@@ -48,7 +48,11 @@ class TransactionResource extends Resource
                     default => $state,
                 }),
                 TextColumn::make('quantity')->label('Jumlah')->numeric()->sortable(),
+                TextColumn::make('reference_no')->label('No. Referensi')->searchable()->placeholder('—'),
+                TextColumn::make('notes')->label('Catatan')->wrap()->placeholder('—')->limit(80),
             ])
+            ->defaultSort('created_at', 'desc')
+            ->poll('5s')
             ->filters([
                 SelectFilter::make('type')
                     ->label('Jenis transaksi')

@@ -16,10 +16,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
 });
 
 Route::middleware('auth:sanctum')->prefix('audit-sessions')->group(function (): void {
-    Route::post('/', [AuditSessionController::class, 'store']);
+    Route::get('/', [AuditSessionController::class, 'index']);
     Route::get('/{auditSession}', [AuditSessionController::class, 'show']);
+    Route::get('/{auditSession}/items', [AuditSessionController::class, 'items']);
     Route::post('/{auditSession}/scan', [AuditSessionController::class, 'scan']);
-    Route::post('/{auditSession}/complete', [AuditSessionController::class, 'complete']);
 });
 
 Route::middleware('auth:sanctum')->prefix('transactions')->group(function (): void {

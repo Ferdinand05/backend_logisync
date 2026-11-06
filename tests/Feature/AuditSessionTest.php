@@ -166,4 +166,42 @@ class AuditSessionTest extends TestCase
             'actual_qty' => 1,
         ])->assertStatus(422);
     }
+
+    public function test_show_endpoint_accessible_by_gudang_role(): void
+    {
+        $gudang = User::factory()->create(['role' => 'gudang']);
+        $location = Location::query()->create(['code' => 'A1', 'name' => 'Rak A1']);
+        $session = AuditSession::query()->create([
+            'audit_number' => 'AUD-7',
+            'audit_method' => 'location',
+            'location_id' => $location->id,
+            'created_by' => $gudang->id,
+            'status' => 'in_progress',
+        ]);
+
+        Sanctum::actingAs($gudang);
+
+        $this->getJson("/api/audit-sessions/{$session->id}")
+            ->assertOk()
+            ->assertJsonPath('data.audit_number', 'AUD-7');
+    }
+
+    public function test_show_endpoint_accessible_by_admin_role(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $location = Location::query()->create(['code' => 'A1', 'name' => 'Rak A1']);
+        $session = AuditSession::query()->create([
+            'audit_number' => 'AUD-8',
+            'audit_method' => 'location',
+            'location_id' => $location->id,
+            'created_by' => $admin->id,
+            'status' => 'in_progress',
+        ]);
+
+        Sanctum::actingAs($admin);
+
+        $this->getJson("/api/audit-sessions/{$session->id}")
+            ->assertOk()
+            ->assertJsonPath('data.audit_number', 'AUD-8');
+    }
 }
