@@ -2,49 +2,64 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Actions\CompleteAuditSession;
-use App\Actions\StartAuditSession;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ScanAuditItemRequest;
+use App\Http\Resources\AuditItemResource;
+use App\Http\Resources\AuditSessionResource;
 use App\Models\AuditItem;
 use App\Models\AuditSession;
 use App\Models\Item;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuditSessionController extends Controller
 {
-    public function store(Request $request, StartAuditSession $startAuditSession): JsonResponse
-    {
-        abort_unless($request->user()->role === 'admin', 403);
-
-        $data = $request->validate([
-            'audit_number' => ['required', 'string', 'max:255', 'unique:audit_sessions,audit_number'],
-            'audit_method' => ['required', Rule::in(['location', 'category', 'manual'])],
-            'location_id' => ['required_if:audit_method,location', 'nullable', 'integer', 'exists:locations,id'],
-            'category_id' => ['required_if:audit_method,category', 'nullable', 'integer', 'exists:categories,id'],
-            'item_ids' => ['required_if:audit_method,manual', 'array', 'min:1'],
-            'item_ids.*' => ['integer', 'distinct', 'exists:items,id'],
-            'manual_target_location_id' => ['required_if:audit_method,manual', 'nullable', 'integer', 'exists:locations,id'],
-        ]);
-        $data['snapshot_location_id'] = $data['manual_target_location_id'] ?? null;
-
-        $session = $startAuditSession->handle($data, (int) $request->user()->id);
-
-        return response()->json(['data' => $session->load('auditItems.item', 'auditItems.location')], 201);
-    }
-
-    public function scan(Request $request, AuditSession $auditSession): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
         abort_unless($request->user()->role === 'gudang', 403);
 
-        $data = $request->validate([
-            'sku' => ['required', 'string', 'max:255'],
-            'location_id' => ['required', 'integer', 'exists:locations,id'],
-            'actual_qty' => ['required', 'integer', 'min:0'],
-        ]);
+        $sessions = AuditSession::query()
+            ->with(['location:id,code,name', 'category:id,name'])
+            ->withCount([
+                'auditItems as items_total',
+                'auditItems as items_scanned' => fn ($query) => $query->whereNotNull('actual_qty'),
+            ])
+            ->where('status', 'in_progress')
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
+        return AuditSessionResource::collection($sessions);
+    }
+
+    public function show(Request $request, AuditSession $auditSession): JsonResponse
+    {
+        abort_unless(in_array($request->user()->role, ['admin', 'gudang'], true), 403);
+
+        return response()->json(['data' => $auditSession->load(['auditItems.item', 'auditItems.location'])]);
+    }
+
+    public function items(Request $request, AuditSession $auditSession): AnonymousResourceCollection
+    {
+        abort_unless($request->user()->role === 'gudang', 403);
+
+        $auditItems = $auditSession->auditItems()
+            ->with(['item:id,sku,name', 'location:id,code,name'])
+            ->join('locations', 'audit_items.location_id', '=', 'locations.id')
+            ->join('items', 'audit_items.item_id', '=', 'items.id')
+            ->select('audit_items.*')
+            ->orderBy('locations.name')
+            ->orderBy('items.name')
+            ->paginate(10);
+
+        return AuditItemResource::collection($auditItems);
+    }
+
+    public function scan(ScanAuditItemRequest $request, AuditSession $auditSession): JsonResponse
+    {
+        $data = $request->validated();
 
         $auditItem = DB::transaction(function () use ($auditSession, $data): AuditItem {
             $session = AuditSession::query()->whereKey($auditSession->id)->lockForUpdate()->firstOrFail();
@@ -83,19 +98,5 @@ class AuditSessionController extends Controller
         });
 
         return response()->json(['data' => $auditItem->load(['item', 'location'])]);
-    }
-
-    public function show(Request $request, AuditSession $auditSession): JsonResponse
-    {
-        abort_unless($request->user()->role === 'admin', 403);
-
-        return response()->json(['data' => $auditSession->load(['auditItems.item', 'auditItems.location'])]);
-    }
-
-    public function complete(Request $request, AuditSession $auditSession, CompleteAuditSession $completeAuditSession): JsonResponse
-    {
-        abort_unless($request->user()->role === 'admin', 403);
-
-        return response()->json(['data' => $completeAuditSession->handle($auditSession, (int) $request->user()->id)]);
     }
 }
