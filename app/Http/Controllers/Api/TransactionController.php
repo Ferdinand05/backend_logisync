@@ -11,7 +11,7 @@ use App\Models\Transaction;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +23,8 @@ class TransactionController extends Controller
         abort_unless($request->user()->role === 'gudang', 403);
 
         $transaction = $this->record($request, 'in');
+
+        Cache::tags('transactions')->flush();
 
         return response()->json([
             'message' => 'Barang masuk berhasil dicatat.',
@@ -36,13 +38,15 @@ class TransactionController extends Controller
 
         $transaction = $this->record($request, 'out');
 
+        Cache::tags('transactions')->flush();
+
         return response()->json([
             'message' => 'Barang keluar berhasil dicatat.',
             'data' => new TransactionResource($transaction),
         ], 201);
     }
 
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request): JsonResponse
     {
         abort_unless($request->user()->role === 'gudang', 403);
 
@@ -50,13 +54,27 @@ class TransactionController extends Controller
             'type' => ['nullable', Rule::in(['in', 'out', 'adjustment'])],
         ]);
 
+        $type = $data['type'] ?? 'all';
+        $page = $request->integer('page', 1);
+        $cacheKey = "transactions:user:{$request->user()->id}:type:{$type}:page:{$page}";
+
+        $cached = Cache::tags('transactions')->get($cacheKey);
+
+        if ($cached !== null) {
+            return response()->json(json_decode($cached, true));
+        }
+
         $transactions = Transaction::query()
             ->with(['item', 'location', 'user'])
             ->when($data['type'] ?? null, fn ($query, string $type) => $query->where('type', $type))
             ->latest()
             ->paginate(15);
 
-        return TransactionResource::collection($transactions);
+        $json = TransactionResource::collection($transactions)->response()->getContent();
+
+        Cache::tags('transactions')->put($cacheKey, $json, now()->addMinutes(5));
+
+        return response()->json(json_decode($json, true));
     }
 
     private function record(FormRequest $request, string $type): Transaction
