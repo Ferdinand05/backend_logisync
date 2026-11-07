@@ -1,30 +1,49 @@
-# Stage 1: Builder (pakai Sail untuk build)
-FROM sail-8.5/app:latest AS builder
+# Stage 1: Builder
+FROM php:8.5-fpm AS builder
+
+RUN apt-get update && apt-get install -y \
+    git curl libpng-dev libonig-dev libxml2-dev libzip-dev \
+    libpq-dev libicu-dev zip unzip nodejs npm
+
+RUN docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd zip intl
+
+RUN pecl install redis && docker-php-ext-enable redis
+
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+COPY composer.json composer.lock ./
+
+RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction
+
+COPY package.json package-lock.json ./
+
+RUN npm ci
+
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer dump-autoload --optimize --no-dev
 
-RUN npm ci && npm run build
+RUN npm run build
 
-# Stage 2: Runtime (hanya PHP-FPM)
+# Stage 2: Runtime
 FROM php:8.5-fpm-alpine
 
-RUN apk add --no-cache libpq libzip libpng oniguruma
+RUN apk add --no-cache libpq libzip libpng oniguruma libintl icu-libs
 
-RUN docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl gd zip intl
-
-# Install Redis extension
-RUN apk add --no-cache autoconf g++ make && \
+RUN apk add --no-cache --virtual .build-deps autoconf g++ make && \
+    docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd zip intl && \
     pecl install redis && \
     docker-php-ext-enable redis && \
-    apk del autoconf g++ make
+    apk del .build-deps
+
+WORKDIR /var/www/html
 
 COPY --from=builder /var/www/html /var/www/html
 
-RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
 
 EXPOSE 9000
 
