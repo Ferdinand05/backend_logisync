@@ -12,7 +12,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        if ($this->isTelescopeEnabled()) {
+        if ($this->isTelescopeEnabled() && class_exists(TelescopeServiceProvider::class)) {
             $this->app->register(TelescopeServiceProvider::class);
             $this->app->register(LocalTelescopeServiceProvider::class);
         }
