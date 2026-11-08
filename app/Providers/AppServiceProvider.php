@@ -2,17 +2,17 @@
 
 namespace App\Providers;
 
+use App\Providers\TelescopeServiceProvider as LocalTelescopeServiceProvider;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeServiceProvider;
-use App\Providers\TelescopeServiceProvider as LocalTelescopeServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        if ($this->app->environment('local')) {
+        if ($this->isTelescopeEnabled()) {
             $this->app->register(TelescopeServiceProvider::class);
             $this->app->register(LocalTelescopeServiceProvider::class);
         }
@@ -36,5 +36,18 @@ class AppServiceProvider extends ServiceProvider
                     Gunakan token Bearer untuk mengakses endpoint terproteksi.
                 ';
             });
+    }
+
+    /**
+     * Telescope hanya dimuat saat environment lokal atau bila diaktifkan eksplisit
+     * melalui TELESCOPE_ENABLED, sehingga tidak ikut terpasang di production.
+     */
+    private function isTelescopeEnabled(): bool
+    {
+        if ($this->app->environment('local')) {
+            return true;
+        }
+
+        return filter_var($this->app['config']->get('telescope.enabled'), FILTER_VALIDATE_BOOL);
     }
 }
