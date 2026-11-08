@@ -48,6 +48,6 @@ class AppServiceProvider extends ServiceProvider
             return true;
         }
 
-        return filter_var($this->app['config']->get('telescope.enabled'), FILTER_VALIDATE_BOOL);
+        return (bool) config('telescope.enabled', false);
     }
 }
