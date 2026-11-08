@@ -47,7 +47,8 @@ RUN npm ci
 COPY . .
 
 RUN composer dump-autoload --optimize --no-dev --no-scripts \
-    && npm run build
+    && npm run build \
+    && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= php artisan filament:assets
 
 # Stage 2: Runtime
 FROM php:8.5-fpm-alpine

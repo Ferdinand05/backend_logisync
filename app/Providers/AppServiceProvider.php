@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Providers\TelescopeServiceProvider as LocalTelescopeServiceProvider;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeServiceProvider;
 
@@ -23,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->forceHttpsWhenConfigured();
+
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $document) {
                 // Mengubah judul utama
@@ -36,6 +39,17 @@ class AppServiceProvider extends ServiceProvider
                     Gunakan token Bearer untuk mengakses endpoint terproteksi.
                 ';
             });
+    }
+
+    /**
+     * Pastikan URL aset dan route memakai HTTPS saat aplikasi diakses lewat
+     * reverse proxy TLS, agar tidak terjadi mixed content.
+     */
+    private function forceHttpsWhenConfigured(): void
+    {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
     }
 
     /**
