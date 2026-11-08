@@ -5,8 +5,8 @@ namespace App\Providers;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Illuminate\Support\ServiceProvider;
-use Laravel\Telescope\Telescope;
-use Laravel\Telescope\TelescopeServiceProvider;
+// use Laravel\Telescope\Telescope;
+// use Laravel\Telescope\TelescopeServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,9 +40,5 @@ class AppServiceProvider extends ServiceProvider
                     Gunakan token Bearer untuk mengakses endpoint terproteksi.
                 ';
             });
-
-        if (! $this->app->environment('local')) {
-            Telescope::night();
-        }
     }
 }
