@@ -38,7 +38,7 @@ WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
 
-RUN composer install --no-dev --no-scripts --no-autoloader --no-interaction
+RUN composer install --no-dev --no-autoloader --no-interaction
 
 COPY package.json package-lock.json ./
 
@@ -46,9 +46,10 @@ RUN npm ci
 
 COPY . .
 
-RUN composer dump-autoload --optimize --no-dev --no-scripts \
+RUN composer dump-autoload --optimize --no-dev \
     && npm run build \
-    && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= php artisan filament:assets
+    && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= php artisan filament:assets \
+    && APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA= php artisan vendor:publish --tag=livewire:assets --force
 
 # Stage 2: Runtime
 FROM php:8.5-fpm-alpine
