@@ -8,37 +8,40 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\PersonalAccessToken;
+use Throwable;
 
 class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = User::query()->where('email', $request->validated('email'))->first();
+        $email = $request->string('email')->toString();
+        $deviceName = $request->string('device_name')->toString() ?: 'api';
 
-        if ($user === null || ! Hash::check($request->validated('password'), $user->password)) {
-            activity('autentikasi')
-                ->withProperties([
-                    'email' => $request->validated('email'),
-                    'ip' => $request->ip(),
-                ])
-                ->log('login gagal');
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user === null || ! Hash::check($request->string('password')->toString(), $user->password)) {
+            $this->recordAuthenticationActivity('login gagal', null, [
+                'email' => $email,
+                'ip' => $request->ip(),
+            ]);
 
             return response()->json(['message' => 'Email atau password salah.'], 401);
         }
 
-        $user->tokens()->delete();
+        $token = DB::transaction(function () use ($user, $deviceName): string {
+            $user->tokens()->delete();
 
-        $token = $user->createToken($request->validated('device_name', 'api'))->plainTextToken;
+            return $user->createToken($deviceName)->plainTextToken;
+        });
 
-        activity('autentikasi')
-            ->causedBy($user)
-            ->withProperties([
-                'device_name' => $request->validated('device_name', 'api'),
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('login');
+        $this->recordAuthenticationActivity('login', $user, [
+            'device_name' => $deviceName,
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
 
         return response()->json([
             'message' => 'Login berhasil.',
@@ -52,13 +55,15 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+        $accessToken = $user?->currentAccessToken();
 
-        activity('autentikasi')
-            ->causedBy($user)
-            ->withProperties(['ip' => $request->ip()])
-            ->log('logout');
+        $this->recordAuthenticationActivity('logout', $user, [
+            'ip' => $request->ip(),
+        ]);
 
-        $user->currentAccessToken()?->delete();
+        if ($accessToken instanceof PersonalAccessToken) {
+            $accessToken->delete();
+        }
 
         return response()->json(['message' => 'Logout berhasil.']);
     }
@@ -66,5 +71,25 @@ class AuthController extends Controller
     public function me(Request $request): UserResource
     {
         return new UserResource($request->user());
+    }
+
+    /**
+     * Catat aktivitas autentikasi tanpa pernah menggagalkan proses login/logout.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    private function recordAuthenticationActivity(string $description, ?User $causer, array $properties): void
+    {
+        try {
+            $activity = activity('autentikasi')->withProperties($properties);
+
+            if ($causer !== null) {
+                $activity->causedBy($causer);
+            }
+
+            $activity->log($description);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }
