@@ -108,6 +108,9 @@ RUN mkdir -p \
 
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY docker/scheduler.sh /usr/local/bin/scheduler.sh
+
+RUN chmod +x /usr/local/bin/scheduler.sh
 
 EXPOSE 80
 

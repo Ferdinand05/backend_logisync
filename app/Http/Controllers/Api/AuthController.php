@@ -17,12 +17,28 @@ class AuthController extends Controller
         $user = User::query()->where('email', $request->validated('email'))->first();
 
         if ($user === null || ! Hash::check($request->validated('password'), $user->password)) {
+            activity('autentikasi')
+                ->withProperties([
+                    'email' => $request->validated('email'),
+                    'ip' => $request->ip(),
+                ])
+                ->log('login gagal');
+
             return response()->json(['message' => 'Email atau password salah.'], 401);
         }
 
         $user->tokens()->delete();
 
         $token = $user->createToken($request->validated('device_name', 'api'))->plainTextToken;
+
+        activity('autentikasi')
+            ->causedBy($user)
+            ->withProperties([
+                'device_name' => $request->validated('device_name', 'api'),
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ])
+            ->log('login');
 
         return response()->json([
             'message' => 'Login berhasil.',
@@ -35,7 +51,14 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user()->currentAccessToken()?->delete();
+        $user = $request->user();
+
+        activity('autentikasi')
+            ->causedBy($user)
+            ->withProperties(['ip' => $request->ip()])
+            ->log('logout');
+
+        $user->currentAccessToken()?->delete();
 
         return response()->json(['message' => 'Logout berhasil.']);
     }
