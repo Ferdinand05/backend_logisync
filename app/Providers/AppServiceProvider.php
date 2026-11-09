@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Providers\TelescopeServiceProvider as LocalTelescopeServiceProvider;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Telescope\TelescopeServiceProvider;
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->forceHttpsWhenConfigured();
+        $this->registerApiDocsGate();
 
         Scramble::configure()
             ->withDocumentTransformers(function (OpenApi $document) {
@@ -50,6 +53,25 @@ class AppServiceProvider extends ServiceProvider
         if (str_starts_with((string) config('app.url'), 'https://')) {
             URL::forceScheme('https');
         }
+    }
+
+    /**
+     * Izinkan akses dokumentasi API untuk admin, environment lokal, atau
+     * saat API_DOCS_ENABLED=true (misalnya ketika frontend masih development).
+     */
+    private function registerApiDocsGate(): void
+    {
+        Gate::define('viewApiDocs', function (?User $user): bool {
+            if ($user?->role === 'admin') {
+                return true;
+            }
+
+            if ($this->app->environment('local')) {
+                return true;
+            }
+
+            return (bool) config('app.api_docs_enabled', false);
+        });
     }
 
     /**

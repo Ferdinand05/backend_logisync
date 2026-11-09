@@ -123,4 +123,16 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | API Documentation
+    |--------------------------------------------------------------------------
+    |
+    | Menentukan apakah halaman dokumentasi API (Scramble) boleh diakses di
+    | luar environment lokal. Berguna saat frontend masih tahap development.
+    |
+    */
+
+    'api_docs_enabled' => env('API_DOCS_ENABLED', false),
+
 ];
