@@ -13,14 +13,17 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class LocationResource extends Resource
 {
     protected static ?string $model = Location::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMapPin;
+    protected static BackedEnum|string|null $navigationIcon = Heroicon::OutlinedMapPin;
 
     protected static ?string $navigationLabel = 'Lokasi';
+
+    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
 
     protected static ?string $modelLabel = 'lokasi';
 

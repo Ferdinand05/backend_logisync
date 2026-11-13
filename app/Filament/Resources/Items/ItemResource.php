@@ -26,14 +26,17 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use UnitEnum;
 
 class ItemResource extends Resource
 {
     protected static ?string $model = Item::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCube;
+    protected static BackedEnum|string|null $navigationIcon = Heroicon::OutlinedCube;
 
     protected static ?string $navigationLabel = 'Barang';
+
+    protected static UnitEnum|string|null $navigationGroup = 'Master Data';
 
     protected static ?string $modelLabel = 'barang';
 

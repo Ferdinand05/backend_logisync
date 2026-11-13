@@ -14,14 +14,17 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use UnitEnum;
 
 class AuditItemResource extends Resource
 {
     protected static ?string $model = AuditItem::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedListBullet;
+    protected static BackedEnum|string|null $navigationIcon = Heroicon::OutlinedListBullet;
 
     protected static ?string $navigationLabel = 'Barang opname';
+
+    protected static UnitEnum|string|null $navigationGroup = 'Stock Opname';
 
     protected static ?string $modelLabel = 'barang opname';
 
